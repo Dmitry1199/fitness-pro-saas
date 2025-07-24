@@ -70,22 +70,3 @@ databases:
 
     # Connection settings
     maxConnections: 50
-
-# Environment Groups
-envVarGroups:
-  - name: fitnesspro-production-config
-    envVars:
-      - key: BACKUP_ENABLED
-        value: true
-      - key: MONITORING_ENABLED
-        value: true
-      - key: SECURITY_ENHANCED
-        value: true
-
-# Blueprint for Infrastructure
-blueprints:
-  - name: fitnesspro-production-stack
-    services:
-      - serviceId: fitnesspro-backend-api
-    databases:
-      - databaseId: fitnesspro-postgres-db
