@@ -1,0 +1,151 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model (basic structure for messages system)
+model User {
+  id               String   @id @default(uuid())
+  email            String   @unique
+  firstName        String?
+  lastName         String?
+  profilePicture   String?
+  role             UserRole @default(CLIENT)
+  isActive         Boolean  @default(true)
+  lastSeen         DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Messages relationships
+  sentMessages     Message[]
+  chatRooms        ChatRoomParticipant[]
+  createdChatRooms ChatRoom[]            @relation("ChatRoomCreator")
+  messageReads     MessageRead[]
+  messageReactions MessageReaction[]
+
+  @@map("users")
+}
+
+enum UserRole {
+  ADMIN
+  TRAINER
+  CLIENT
+}
+
+// Chat Room model
+model ChatRoom {
+  id          String       @id @default(uuid())
+  name        String?
+  type        ChatRoomType @default(DIRECT)
+  description String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relationships
+  createdById  String
+  createdBy    User                  @relation("ChatRoomCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  participants ChatRoomParticipant[]
+  messages     Message[]
+
+  @@map("chat_rooms")
+}
+
+enum ChatRoomType {
+  DIRECT
+  GROUP
+  SUPPORT
+}
+
+// Chat Room Participants
+model ChatRoomParticipant {
+  id         String   @id @default(uuid())
+  userId     String
+  chatRoomId String
+  joinedAt   DateTime @default(now())
+  leftAt     DateTime?
+  isActive   Boolean  @default(true)
+
+  // Relationships
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatRoom ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, chatRoomId])
+  @@map("chat_room_participants")
+}
+
+// Message model
+model Message {
+  id             String      @id @default(uuid())
+  content        String
+  type           MessageType @default(TEXT)
+  attachmentUrl  String?
+  attachmentName String?
+  isEdited       Boolean     @default(false)
+  editedAt       DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  // Relationships
+  senderId   String
+  sender     User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  chatRoomId String
+  chatRoom   ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+
+  // Reply functionality
+  replyToId String?
+  replyTo   Message?  @relation("MessageReply", fields: [replyToId], references: [id])
+  replies   Message[] @relation("MessageReply")
+
+  // Message interactions
+  readBy    MessageRead[]
+  reactions MessageReaction[]
+
+  @@map("messages")
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+  AUDIO
+  SYSTEM
+}
+
+// Message Read tracking
+model MessageRead {
+  id        String   @id @default(uuid())
+  readAt    DateTime @default(now())
+  messageId String
+  userId    String
+
+  // Relationships
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@map("message_reads")
+}
+
+// Message Reactions
+model MessageReaction {
+  id        String   @id @default(uuid())
+  reaction  String // emoji or reaction type
+  createdAt DateTime @default(now())
+  messageId String
+  userId    String
+
+  // Relationships
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, reaction])
+  @@map("message_reactions")
+}
