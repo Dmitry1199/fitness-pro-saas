@@ -2,17 +2,17 @@ import {
   WebSocketGateway,
   WebSocketServer,
   SubscribeMessage,
-  OnGatewayConnection,
-  OnGatewayDisconnect,
+  type OnGatewayConnection,
+  type OnGatewayDisconnect,
   ConnectedSocket,
   MessageBody,
 } from '@nestjs/websockets';
-import { Server, Socket } from 'socket.io';
+import type { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { MessagesService } from './messages.service';
-import { CreateMessageDto } from './dto/create-message.dto';
-import {
+import type { JwtService } from '@nestjs/jwt';
+import type { MessagesService } from './messages.service';
+import type { CreateMessageDto } from './dto/create-message.dto';
+import type {
   JoinChatRoomDto,
   TypingIndicatorDto,
   MessageReadDto,
@@ -52,7 +52,7 @@ export class MessagesGateway
         client.handshake.headers?.authorization?.replace('Bearer ', '');
 
       if (!token) {
-        this.logger.warn('Client ' + client.id + ' connected without token');
+        this.logger.warn(`Client ${client.id} connected without token`);
         client.disconnect();
         return;
       }
@@ -65,12 +65,7 @@ export class MessagesGateway
       this.userSockets.set(client.id, client.userId);
 
       this.logger.log(
-        'User ' +
-          client.userEmail +
-          ' (' +
-          client.userId +
-          ') connected with socket ' +
-          client.id,
+        `User ${client.userEmail} (${client.userId}) connected with socket ${client.id}`,
       );
 
       this.server.emit('userOnline', {
@@ -82,7 +77,7 @@ export class MessagesGateway
       await this.joinUserChatRooms(client);
     } catch (error) {
       this.logger.error(
-        'Authentication failed for socket ' + client.id + ':',
+        `Authentication failed for socket ${client.id}:`,
         error,
       );
       client.disconnect();
@@ -95,11 +90,7 @@ export class MessagesGateway
       this.userSockets.delete(client.id);
 
       this.logger.log(
-        'User ' +
-          client.userEmail +
-          ' (' +
-          client.userId +
-          ') disconnected',
+        `User ${client.userEmail} (${client.userId}) disconnected`,
       );
 
       this.server.emit('userOffline', {
@@ -121,7 +112,7 @@ export class MessagesGateway
       await client.join(data.chatRoomId);
 
       this.logger.log(
-        'User ' + client.userId + ' joined chat room ' + data.chatRoomId,
+        `User ${client.userId} joined chat room ${data.chatRoomId}`,
       );
 
       client.emit('joinedChatRoom', {
@@ -136,7 +127,7 @@ export class MessagesGateway
       });
     } catch (error) {
       this.logger.error(
-        'Failed to join chat room ' + data.chatRoomId + ':',
+        `Failed to join chat room ${data.chatRoomId}:`,
         error,
       );
       client.emit('error', {
@@ -154,7 +145,7 @@ export class MessagesGateway
     await client.leave(data.chatRoomId);
 
     this.logger.log(
-      'User ' + client.userId + ' left chat room ' + data.chatRoomId,
+      `User ${client.userId} left chat room ${data.chatRoomId}`,
     );
 
     client.emit('leftChatRoom', {
@@ -186,7 +177,7 @@ export class MessagesGateway
       });
 
       this.logger.log(
-        'Message sent by ' + client.userId + ' to room ' + data.chatRoomId,
+        `Message sent by ${client.userId} to room ${data.chatRoomId}`,
       );
     } catch (error) {
       this.logger.error('Failed to send message:', error);
@@ -290,7 +281,7 @@ export class MessagesGateway
       for (const chatRoom of chatRooms) {
         await client.join(chatRoom.id);
         this.logger.log(
-          'User ' + client.userId + ' auto-joined chat room ' + chatRoom.id,
+          `User ${client.userId} auto-joined chat room ${chatRoom.id}`,
         );
       }
     } catch (error) {

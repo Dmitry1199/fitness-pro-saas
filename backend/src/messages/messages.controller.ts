@@ -15,11 +15,11 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { MessagesService } from './messages.service';
-import { CreateMessageDto } from './dto/create-message.dto';
-import { CreateChatRoomDto } from './dto/create-chat-room.dto';
-import { UpdateMessageDto } from './dto/update-message.dto';
-import { MessageFiltersDto } from './dto/message-filters.dto';
+import type { MessagesService } from './messages.service';
+import type { CreateMessageDto } from './dto/create-message.dto';
+import type { CreateChatRoomDto } from './dto/create-chat-room.dto';
+import type { UpdateMessageDto } from './dto/update-message.dto';
+import type { MessageFiltersDto } from './dto/message-filters.dto';
 
 @ApiTags('Messages')
 @ApiBearerAuth()

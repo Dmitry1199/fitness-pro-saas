@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { CreateMessageDto, MessageType } from './dto/create-message.dto';
-import { CreateChatRoomDto, ChatRoomType } from './dto/create-chat-room.dto';
-import { UpdateMessageDto } from './dto/update-message.dto';
-import { MessageFiltersDto } from './dto/message-filters.dto';
+import type { PrismaService } from '../prisma/prisma.service';
+import { type CreateMessageDto, MessageType } from './dto/create-message.dto';
+import { type CreateChatRoomDto, ChatRoomType } from './dto/create-chat-room.dto';
+import type { UpdateMessageDto } from './dto/update-message.dto';
+import type { MessageFiltersDto } from './dto/message-filters.dto';
 
 @Injectable()
 export class MessagesService {
