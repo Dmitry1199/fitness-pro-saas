@@ -2,18 +2,13 @@ name: Docker Build and Push
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - uses: actions/checkout@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -32,7 +27,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push (без кешу)
         uses: docker/build-push-action@v5
         with:
           context: ./backend
@@ -42,5 +37,3 @@ jobs:
             ghcr.io/dmitry1199/fitness-pro-saas/backend:main
             ghcr.io/dmitry1199/fitness-pro-saas/backend:latest
             ghcr.io/dmitry1199/fitness-pro-saas/backend:main-${{ github.sha }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
