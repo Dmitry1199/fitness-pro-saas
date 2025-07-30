@@ -1,4 +1,4 @@
-name: Build & Push Docker Image
+nname: Build & Push Docker Image
 
 on:
   push:
@@ -19,6 +19,9 @@ jobs:
           driver: docker-container
           install: true
           buildkitd-flags: --debug
+
+      - name: Set builder as default
+        run: docker buildx use ${{ steps.buildx.outputs.name }}
 
       - name: Show available builders
         run: docker buildx ls
@@ -43,4 +46,3 @@ jobs:
             ghcr.io/dmitry1199/fitness-pro-saas/backend:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
