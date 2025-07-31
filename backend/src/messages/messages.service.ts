@@ -9,34 +9,66 @@ import type { MessageFiltersDto } from './dto/message-filters.dto';
 export class MessagesService {
   constructor(private prisma: PrismaService) {}
 
-  // Chat Room Management
-  async createChatRoom(createChatRoomDto: CreateChatRoomDto, creatorId: string) {
-    const { participantIds, type, name, description } = createChatRoomDto;
+  // --- Приватні допоміжні методи ---
 
-    // Validate participants exist
+  private async validateParticipants(participantIds: string[]) {
     const participants = await this.prisma.user.findMany({
       where: { id: { in: participantIds } },
+      select: { id: true },
     });
 
     if (participants.length !== participantIds.length) {
       throw new BadRequestException('Some participants not found');
     }
+  }
 
-    // For direct chats, check if room already exists
+  private async checkUserInChatRoom(chatRoomId: string, userId: string) {
+    const participant = await this.prisma.chatRoomParticipant.findUnique({
+      where: {
+        chatRoomId_userId: {
+          chatRoomId,
+          userId,
+        }
+      }
+    });
+    if (!participant) {
+      throw new ForbiddenException('Access denied to this chat room');
+    }
+  }
+
+  private async findMessageById(messageId: string) {
+    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
+    if (!message) throw new NotFoundException('Message not found');
+    return message;
+  }
+
+  private generateChatRoomName(participants: { firstName: string; lastName: string }[], type: ChatRoomType): string {
+    if (type === ChatRoomType.DIRECT) {
+      return participants.map(p => `${p.firstName} ${p.lastName}`).join(', ');
+    }
+    return `Group Chat - ${new Date().toLocaleDateString()}`;
+  }
+
+  // --- Chat Room Management ---
+
+  async createChatRoom(createChatRoomDto: CreateChatRoomDto, creatorId: string) {
+    const { participantIds, type, name, description } = createChatRoomDto;
+
+    await this.validateParticipants(participantIds);
+
     if (type === ChatRoomType.DIRECT && participantIds.length === 2) {
+      // Знайти існуючу кімнату, де учасники рівно ці двоє
       const existingRoom = await this.prisma.chatRoom.findFirst({
         where: {
           type: ChatRoomType.DIRECT,
           participants: {
-            every: {
-              userId: { in: participantIds }
-            }
+            every: { userId: { in: participantIds } }
+          },
+          participants: {
+            some: { userId: { in: participantIds } }
           }
         },
-        include: {
-          participants: true,
-          _count: { select: { participants: true } }
-        }
+        include: { _count: { select: { participants: true } } }
       });
 
       if (existingRoom && existingRoom._count.participants === 2) {
@@ -44,42 +76,29 @@ export class MessagesService {
       }
     }
 
-    // Create chat room
+    // Створити нову кімнату
+    const participantsData = participantIds.map(userId => ({ userId }));
+
     const chatRoom = await this.prisma.chatRoom.create({
       data: {
-        name: name || this.generateChatRoomName(participants, type),
+        name: name || this.generateChatRoomName(await this.prisma.user.findMany({
+          where: { id: { in: participantIds } },
+          select: { firstName: true, lastName: true }
+        }), type),
         type,
         description,
         createdById: creatorId,
-        participants: {
-          createMany: {
-            data: participantIds.map(userId => ({ userId }))
-          }
-        }
+        participants: { createMany: { data: participantsData } }
       },
       include: {
         participants: {
           include: {
             user: {
-              select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-                profilePicture: true,
-                role: true
-              }
+              select: { id: true, email: true, firstName: true, lastName: true, profilePicture: true, role: true }
             }
           }
         },
-        createdBy: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true
-          }
-        },
+        createdBy: { select: { id: true, email: true, firstName: true, lastName: true } },
         _count: { select: { messages: true } }
       }
     });
@@ -89,44 +108,21 @@ export class MessagesService {
 
   async getUserChatRooms(userId: string) {
     return this.prisma.chatRoom.findMany({
-      where: {
-        participants: {
-          some: { userId }
-        }
-      },
+      where: { participants: { some: { userId } } },
       include: {
         participants: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-                profilePicture: true,
-                role: true
-              }
-            }
-          }
+          include: { user: { select: { id: true, email: true, firstName: true, lastName: true, profilePicture: true, role: true } } }
         },
         messages: {
           orderBy: { createdAt: 'desc' },
           take: 1,
           include: {
-            sender: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true
-              }
-            }
+            sender: { select: { id: true, firstName: true, lastName: true } }
           }
         },
         _count: { select: { messages: true } }
       },
-      orderBy: {
-        updatedAt: 'desc'
-      }
+      orderBy: { updatedAt: 'desc' }
     });
   }
 
@@ -137,53 +133,31 @@ export class MessagesService {
         participants: {
           include: {
             user: {
-              select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true,
-                profilePicture: true,
-                role: true
-              }
+              select: { id: true, email: true, firstName: true, lastName: true, profilePicture: true, role: true }
             }
           }
         },
-        createdBy: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true
-          }
-        }
+        createdBy: { select: { id: true, email: true, firstName: true, lastName: true } }
       }
     });
 
-    if (!chatRoom) {
-      throw new NotFoundException('Chat room not found');
-    }
+    if (!chatRoom) throw new NotFoundException('Chat room not found');
 
-    // Check if user is participant
     const isParticipant = chatRoom.participants.some(p => p.userId === userId);
-    if (!isParticipant) {
-      throw new ForbiddenException('Access denied to this chat room');
-    }
+    if (!isParticipant) throw new ForbiddenException('Access denied to this chat room');
 
     return chatRoom;
   }
 
-  // Message Management
+  // --- Message Management ---
+
   async createMessage(createMessageDto: CreateMessageDto, senderId: string) {
     const { chatRoomId, content, type, attachmentUrl, attachmentName, replyToId } = createMessageDto;
 
-    // Verify user is participant in chat room
-    await this.getChatRoomById(chatRoomId, senderId);
+    await this.checkUserInChatRoom(chatRoomId, senderId);
 
-    // Verify reply message exists if provided
     if (replyToId) {
-      const replyMessage = await this.prisma.message.findUnique({
-        where: { id: replyToId }
-      });
+      const replyMessage = await this.prisma.message.findUnique({ where: { id: replyToId } });
       if (!replyMessage || replyMessage.chatRoomId !== chatRoomId) {
         throw new BadRequestException('Reply message not found in this chat room');
       }
@@ -201,40 +175,21 @@ export class MessagesService {
       },
       include: {
         sender: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            profilePicture: true
-          }
+          select: { id: true, email: true, firstName: true, lastName: true, profilePicture: true }
         },
         replyTo: {
           include: {
-            sender: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true
-              }
-            }
+            sender: { select: { id: true, firstName: true, lastName: true } }
           }
         },
         reactions: {
           include: {
-            user: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true
-              }
-            }
+            user: { select: { id: true, firstName: true, lastName: true } }
           }
         }
       }
     });
 
-    // Update chat room's last activity
     await this.prisma.chatRoom.update({
       where: { id: chatRoomId },
       data: { updatedAt: new Date() }
@@ -246,22 +201,14 @@ export class MessagesService {
   async getMessages(filters: MessageFiltersDto, userId: string) {
     const { chatRoomId, type, fromDate, toDate, search, page = 1, limit = 20 } = filters;
 
-    if (chatRoomId) {
-      // Verify user has access to chat room
-      await this.getChatRoomById(chatRoomId, userId);
-    }
+    if (chatRoomId) await this.checkUserInChatRoom(chatRoomId, userId);
 
     const skip = (page - 1) * limit;
     const where: any = {};
 
     if (chatRoomId) where.chatRoomId = chatRoomId;
     if (type) where.type = type;
-    if (search) {
-      where.content = {
-        contains: search,
-        mode: 'insensitive'
-      };
-    }
+    if (search) where.content = { contains: search, mode: 'insensitive' };
     if (fromDate || toDate) {
       where.createdAt = {};
       if (fromDate) where.createdAt.gte = new Date(fromDate);
@@ -272,48 +219,10 @@ export class MessagesService {
       this.prisma.message.findMany({
         where,
         include: {
-          sender: {
-            select: {
-              id: true,
-              email: true,
-              firstName: true,
-              lastName: true,
-              profilePicture: true
-            }
-          },
-          replyTo: {
-            include: {
-              sender: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true
-                }
-              }
-            }
-          },
-          reactions: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true
-                }
-              }
-            }
-          },
-          readBy: {
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true
-                }
-              }
-            }
-          }
+          sender: { select: { id: true, email: true, firstName: true, lastName: true, profilePicture: true } },
+          replyTo: { include: { sender: { select: { id: true, firstName: true, lastName: true } } } },
+          reactions: { include: { user: { select: { id: true, firstName: true, lastName: true } } } },
+          readBy: { include: { user: { select: { id: true, firstName: true, lastName: true } } } }
         },
         orderBy: { createdAt: 'desc' },
         skip,
@@ -334,20 +243,13 @@ export class MessagesService {
   }
 
   async updateMessage(messageId: string, updateMessageDto: UpdateMessageDto, userId: string) {
-    const message = await this.prisma.message.findUnique({
-      where: { id: messageId }
-    });
+    const message = await this.findMessageById(messageId);
 
-    if (!message) {
-      throw new NotFoundException('Message not found');
-    }
-
-    // Only sender can edit message content
     if (message.senderId !== userId && updateMessageDto.content) {
       throw new ForbiddenException('You can only edit your own messages');
     }
 
-    const updateData: any = {};
+    const updateData: Partial<typeof message> = {};
     if (updateMessageDto.content) {
       updateData.content = updateMessageDto.content;
       updateData.isEdited = true;
@@ -358,77 +260,34 @@ export class MessagesService {
       where: { id: messageId },
       data: updateData,
       include: {
-        sender: {
-          select: {
-            id: true,
-            email: true,
-            firstName: true,
-            lastName: true,
-            profilePicture: true
-          }
-        },
-        replyTo: {
-          include: {
-            sender: {
-              select: {
-                id: true,
-                firstName: true,
-                lastName: true
-              }
-            }
-          }
-        }
+        sender: { select: { id: true, email: true, firstName: true, lastName: true, profilePicture: true } },
+        replyTo: { include: { sender: { select: { id: true, firstName: true, lastName: true } } } }
       }
     });
   }
 
   async deleteMessage(messageId: string, userId: string) {
-    const message = await this.prisma.message.findUnique({
-      where: { id: messageId }
-    });
-
-    if (!message) {
-      throw new NotFoundException('Message not found');
-    }
+    const message = await this.findMessageById(messageId);
 
     if (message.senderId !== userId) {
       throw new ForbiddenException('You can only delete your own messages');
     }
 
-    return this.prisma.message.delete({
-      where: { id: messageId }
-    });
+    return this.prisma.message.delete({ where: { id: messageId } });
   }
 
   async markMessageAsRead(messageId: string, userId: string) {
-    const message = await this.prisma.message.findUnique({
-      where: { id: messageId }
-    });
+    const message = await this.findMessageById(messageId);
 
-    if (!message) {
-      throw new NotFoundException('Message not found');
-    }
+    await this.checkUserInChatRoom(message.chatRoomId, userId);
 
-    // Verify user is participant in chat room
-    await this.getChatRoomById(message.chatRoomId, userId);
-
-    // Check if already read
     const existingRead = await this.prisma.messageRead.findUnique({
-      where: {
-        messageId_userId: {
-          messageId,
-          userId
-        }
-      }
+      where: { messageId_userId: { messageId, userId } }
     });
 
     if (!existingRead) {
       await this.prisma.messageRead.create({
-        data: {
-          messageId,
-          userId,
-          readAt: new Date()
-        }
+        data: { messageId, userId, readAt: new Date() }
       });
     }
 
@@ -436,64 +295,26 @@ export class MessagesService {
   }
 
   async addReaction(messageId: string, reaction: string, userId: string) {
-    const message = await this.prisma.message.findUnique({
-      where: { id: messageId }
-    });
+    const message = await this.findMessageById(messageId);
 
-    if (!message) {
-      throw new NotFoundException('Message not found');
-    }
+    await this.checkUserInChatRoom(message.chatRoomId, userId);
 
-    // Verify user is participant in chat room
-    await this.getChatRoomById(message.chatRoomId, userId);
-
-    // Check if reaction already exists
     const existingReaction = await this.prisma.messageReaction.findUnique({
-      where: {
-        messageId_userId_reaction: {
-          messageId,
-          userId,
-          reaction
-        }
-      }
+      where: { messageId_userId_reaction: { messageId, userId, reaction } }
     });
 
     if (existingReaction) {
-      // Remove reaction
-      await this.prisma.messageReaction.delete({
-        where: { id: existingReaction.id }
-      });
+      await this.prisma.messageReaction.delete({ where: { id: existingReaction.id } });
     } else {
-      // Add reaction
-      await this.prisma.messageReaction.create({
-        data: {
-          messageId,
-          userId,
-          reaction
-        }
-      });
+      await this.prisma.messageReaction.create({ data: { messageId, userId, reaction } });
     }
 
     return { success: true };
   }
 
-  // Helper methods
-  private generateChatRoomName(participants: any[], type: ChatRoomType): string {
-    if (type === ChatRoomType.DIRECT) {
-      return participants
-        .map(p => `${p.firstName} ${p.lastName}`)
-        .join(', ');
-    }
-    return `Group Chat - ${new Date().toLocaleDateString()}`;
-  }
-
   async getUnreadMessagesCount(userId: string): Promise<number> {
     const userChatRooms = await this.prisma.chatRoom.findMany({
-      where: {
-        participants: {
-          some: { userId }
-        }
-      },
+      where: { participants: { some: { userId } } },
       select: { id: true }
     });
 
@@ -503,9 +324,7 @@ export class MessagesService {
       where: {
         chatRoomId: { in: chatRoomIds },
         senderId: { not: userId },
-        readBy: {
-          none: { userId }
-        }
+        readBy: { none: { userId } }
       }
     });
 
