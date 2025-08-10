@@ -1,9 +1,9 @@
-import { IsString, IsEnum, IsOptional, IsArray, ArrayNotEmpty, ArrayUnique } from 'class-validator';
+import { IsString, IsEnum, IsOptional, IsArray, ArrayUnique } from 'class-validator';
 import { ChatRoomType } from '@prisma/client';
 
 export class CreateChatRoomDto {
   @IsString()
-  name: string;  // обов’язкове поле, бо у Prisma schema воно required
+  name: string;
 
   @IsEnum(ChatRoomType)
   type: ChatRoomType;
@@ -12,9 +12,9 @@ export class CreateChatRoomDto {
   @IsString()
   description?: string;
 
+  @IsOptional()
   @IsArray()
-  @ArrayNotEmpty()
   @ArrayUnique()
   @IsString({ each: true })
-  participantIds: string[];
+  participantIds?: string[];
 }

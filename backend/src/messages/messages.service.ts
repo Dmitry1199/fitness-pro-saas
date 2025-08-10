@@ -1,33 +1,41 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { $Enums, ChatRoom, Message } from '@prisma/client';
-import { CreateChatRoomDto } from './dto/create-chat-room.dto';
-import { CreateMessageDto } from './dto/create-message.dto';
-import { UpdateMessageDto } from './dto/update-message.dto';
+import type { CreateChatRoomDto } from './dto/create-chat-room.dto';
+import type { CreateMessageDto } from './dto/create-message.dto';
+import type { UpdateMessageDto } from './dto/update-message.dto';
+import type { MessageFiltersDto } from './dto/message-filters.dto';
 
 @Injectable()
 export class MessagesService {
   constructor(private prisma: PrismaService) {}
 
   async createChatRoom(data: CreateChatRoomDto, userId: string): Promise<ChatRoom> {
-    if (!data.name) {
+    const { participantIds, ...chatRoomData } = data;
+
+    if (!chatRoomData.name) {
       throw new BadRequestException('Chat room name is required');
     }
-    return this.prisma.chatRoom.create({
+
+    const chatRoom = await this.prisma.chatRoom.create({
       data: {
-        name: data.name,
-        description: data.description,
+        ...chatRoomData,
         type: data.type as $Enums.ChatRoomType,
         createdBy: { connect: { id: userId } },
-        participants: {
-          create: data.participantIds.map(id => ({ userId: id })),
-        },
-      },
-      include: {
-        participants: true,
-        createdBy: true,
       },
     });
+
+    if (participantIds && participantIds.length) {
+      await this.prisma.chatRoomParticipant.createMany({
+        data: participantIds.map(id => ({
+          chatRoomId: chatRoom.id,
+          userId: id,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    return chatRoom;
   }
 
   async getUserChatRooms(userId: string): Promise<ChatRoom[]> {
@@ -65,19 +73,21 @@ export class MessagesService {
   }
 
   async createMessage(data: CreateMessageDto, userId: string): Promise<Message> {
+    const messageData: any = {
+      content: data.content,
+      type: data.type ? (data.type as $Enums.MessageType) : $Enums.MessageType.TEXT,
+      attachmentUrl: data.attachmentUrl,
+      attachmentName: data.attachmentName,
+      chatRoom: { connect: { id: data.chatRoomId } },
+      sender: { connect: { id: userId } },
+    };
+
+    if (data.replyToId) {
+      messageData.replyTo = { connect: { id: data.replyToId } };
+    }
+
     return this.prisma.message.create({
-      data: {
-        content: data.content,
-        type: (data.type || $Enums.MessageType.TEXT) as $Enums.MessageType,
-        attachmentUrl: data.attachmentUrl,
-        attachmentName: data.attachmentName,
-        replyToId: data.replyToId,
-        chatRoom: { connect: { id: data.chatRoomId } },
-        sender: { connect: { id: userId } },
-      },
-      include: {
-        sender: true,
-      },
+      data: messageData,
     });
   }
 
@@ -86,41 +96,18 @@ export class MessagesService {
       throw new BadRequestException('chatRoomId is required');
     }
 
-    const where: any = {
-      chatRoomId: filters.chatRoomId,
-    };
-
-    if (filters.type) {
-      where.type = filters.type;
-    }
-
-    if (filters.fromDate || filters.toDate) {
-      where.createdAt = {};
-      if (filters.fromDate) where.createdAt.gte = new Date(filters.fromDate);
-      if (filters.toDate) where.createdAt.lte = new Date(filters.toDate);
-    }
-
-    if (filters.search) {
-      where.content = {
-        contains: filters.search,
-        mode: 'insensitive',
-      };
-    }
-
-    const page = filters.page ?? 1;
-    const limit = filters.limit ?? 20;
-    const skip = (page - 1) * limit;
+    // Можна додати перевірку доступу користувача
 
     return this.prisma.message.findMany({
-      where,
+      where: {
+        chatRoomId: filters.chatRoomId,
+      },
       orderBy: { createdAt: 'asc' },
       include: {
         sender: true,
         reactions: true,
         readBy: true,
       },
-      skip,
-      take: limit,
     });
   }
 
@@ -167,10 +154,14 @@ export class MessagesService {
     return this.prisma.message.count({
       where: {
         NOT: {
-          readBy: { some: { userId } },
+          readBy: {
+            some: { userId },
+          },
         },
         chatRoom: {
-          participants: { some: { userId } },
+          participants: {
+            some: { userId },
+          },
         },
       },
     });
