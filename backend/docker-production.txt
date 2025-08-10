@@ -17,7 +17,8 @@ RUN bun install --frozen-lockfile --production
 
 # ДОДАНО: Генеруємо Prisma Client
 # Це критично важливо для генерації файлів типів Prisma
-COPY prisma ./prisma/ # Копіюємо папку Prisma зі схемою бази даних
+# Копіюємо папку Prisma зі схемою бази даних (коментар винесено на окремий рядок або видалено)
+COPY prisma ./prisma/ 
 RUN bunx prisma generate # Явно запускаємо генерацію клієнта Prisma
 
 # Копіюємо все решту файлів проєкту
