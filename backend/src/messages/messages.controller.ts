@@ -16,11 +16,12 @@ import {
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import type { MessagesService } from './messages.service';
-import type { CreateMessageDto } from './dto/create-message.dto';
-import type { CreateChatRoomDto, ChatRoomType } from './dto/create-chat-room.dto';
-import type { UpdateMessageDto } from './dto/update-message.dto';
-import type { MessageFiltersDto } from './dto/message-filters.dto';
+import { MessagesService } from './messages.service';
+import { CreateMessageDto } from './dto/create-message.dto';
+import { CreateChatRoomDto } from './dto/create-chat-room.dto';
+import { ChatRoomType } from '@prisma/client';
+import { UpdateMessageDto } from './dto/update-message.dto';
+import { MessageFiltersDto } from './dto/message-filters.dto';
 
 @ApiTags('Messages')
 @ApiBearerAuth()
@@ -36,19 +37,20 @@ export class MessagesController {
   @ApiResponse({ status: HttpStatus.CREATED, description: 'Chat room created successfully' })
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid request data' })
   async createChatRoom(
-    @Body() body: { name: string; type: string; participantIds: string[] },
+    @Body() body: { name: string; type: string; participantIds?: string[] },
     @Request() req: any,
   ) {
     if (!body.name) throw new BadRequestException('Chat room name is required');
 
-    // Перевірка, чи тип валідний згідно з ChatRoomType
-    if (!Object.values(ChatRoomType).includes(body.type as ChatRoomType)) {
+    const typeUpper = body.type.toUpperCase();
+
+    if (!Object.values(ChatRoomType).includes(typeUpper as ChatRoomType)) {
       throw new BadRequestException(`Invalid chat room type: ${body.type}`);
     }
 
     const createChatRoomDto: CreateChatRoomDto = {
       name: body.name,
-      type: body.type as ChatRoomType,
+      type: typeUpper as ChatRoomType,
       participantIds: body.participantIds || [],
     };
 
