@@ -3,7 +3,7 @@ name: Build and Push Docker Images # Назва вашого робочого п
 on:
   push:
     branches:
-      - main # Цей робочий процес буде запускатися при пуші до гілки 'main'
+      - main # Цей робочий процес запускатиметься при пуші до гілки 'main'
   pull_request:
     branches:
       - main # Також запускатиметься при пуші до PR, що спрямовані на 'main'
