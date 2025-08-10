@@ -58,7 +58,6 @@ jobs:
           file: ./backend/docker-production.txt
           push: true
           tags: |
-            # ✅ Використовуємо підготовлену змінну, яка вже є в нижньому регістрі
             ghcr.io/${{ steps.prepare_repo_name.outputs.LOWER_REPO_NAME }}/backend:latest
             ghcr.io/${{ steps.prepare_repo_name.outputs.LOWER_REPO_NAME }}/backend:main
             ghcr.io/${{ steps.prepare_repo_name.outputs.LOWER_REPO_NAME }}/backend:${{ github.sha }}
