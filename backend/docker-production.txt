@@ -1,23 +1,30 @@
-# Build stage
-FROM oven/bun:1-alpine AS builder
-WORKDIR /app
-
-COPY package.json bun.lockb* ./
-RUN bun install --frozen-lockfile
-
-COPY . .
-RUN bun run build
-
-# Production stage
+# Use official Bun Alpine base image
 FROM oven/bun:1-alpine
+
+# Set working directory
 WORKDIR /app
 
-RUN apk add --no-cache dumb-init curl ca-certificates
+# Обновлення apk, установка необхідних пакетів і очищення кешу
+RUN apk update && apk upgrade && \
+    apk add --no-cache dumb-init curl ca-certificates && \
+    rm -rf /var/cache/apk/*
 
+# Копіюємо package.json і bun.lockb (якщо є)
 COPY package.json bun.lockb* ./
+
+# Встановлюємо залежності, без devDependencies (production mode)
 RUN bun install --frozen-lockfile --production
 
-COPY --from=builder /app/.output ./.output
+# ДОДАНО: Генеруємо Prisma Client
+# Це критично важливо для генерації файлів типів Prisma
+COPY prisma ./prisma/ # Копіюємо папку Prisma зі схемою бази даних
+RUN bunx prisma generate # Явно запускаємо генерацію клієнта Prisma
 
+# Копіюємо все решту файлів проєкту
+COPY . .
+
+# Запускаємо додаток з dumb-init для кращого оброблення сигналів
 ENTRYPOINT ["dumb-init", "--"]
+
+# Команда для запуску (підкоригуй під свій стартовий скрипт)
 CMD ["bun", "run", "start"]
