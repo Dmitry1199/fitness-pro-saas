@@ -5,6 +5,11 @@ import {
 } from "@nestjs/common";
 import type { JwtService } from "@nestjs/jwt";
 import { AuthGuard } from "@nestjs/passport";
+import type { Request } from "express"; // Import Request from 'express' to ensure correct base type
+import type {
+  JwtPayload,
+  RequestWithUser,
+} from "../../common/interfaces/request-with-user.interface"; // Adjust path as needed
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard("jwt") {
@@ -12,8 +17,9 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
     super();
   }
 
-  canActivate(context: ExecutionContext) {
-    const request = context.switchToHttp().getRequest();
+  canActivate(context: ExecutionContext): boolean | Promise<boolean> {
+    // Cast the request to RequestWithUser to ensure TypeScript knows about `request.user`
+    const request = context.switchToHttp().getRequest<RequestWithUser>();
     const token = this.extractTokenFromHeader(request);
 
     if (!token) {
@@ -21,7 +27,8 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
     }
 
     try {
-      const payload = this.jwtService.verify(token);
+      // Explicitly type the payload from jwtService.verify
+      const payload: JwtPayload = this.jwtService.verify(token);
       request.user = {
         userId: payload.sub,
         email: payload.email,
@@ -33,7 +40,9 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
     }
   }
 
-  private extractTokenFromHeader(request: any): string | undefined {
+  // Use the standard Express Request type here, or RequestWithUser if you prefer
+  // Using Request is fine as we only access headers, but RequestWithUser is also valid.
+  private extractTokenFromHeader(request: Request): string | undefined {
     const [type, token] = request.headers.authorization?.split(" ") ?? [];
     return type === "Bearer" ? token : undefined;
   }

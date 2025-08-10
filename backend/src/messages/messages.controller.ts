@@ -12,37 +12,50 @@ import {
   Query,
   Request,
   UseGuards,
-} from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { ChatRoomType } from '@prisma/client';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-import { RolesGuard } from '../auth/guards/roles.guard';
+} from "@nestjs/common";
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiTags,
+} from "@nestjs/swagger";
+import { ChatRoomType } from "@prisma/client";
+import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
+import { RolesGuard } from "../auth/guards/roles.guard";
 // Імпортуємо інтерфейс RequestWithUser
-import type { RequestWithUser } from '../common/interfaces/request-with-user.interface'; 
-import type { CreateChatRoomDto } from './dto/create-chat-room.dto';
-import type { CreateMessageDto } from './dto/create-message.dto';
-import type { MessageFiltersDto } from './dto/message-filters.dto';
-import type { UpdateMessageDto } from './dto/update-message.dto';
-import type { MessagesService } from './messages.service';
+import type { RequestWithUser } from "../common/interfaces/request-with-user.interface";
+import type { CreateChatRoomDto } from "./dto/create-chat-room.dto";
+import type { CreateMessageDto } from "./dto/create-message.dto";
+import type { MessageFiltersDto } from "./dto/message-filters.dto";
+import type { UpdateMessageDto } from "./dto/update-message.dto";
+import type { MessagesService } from "./messages.service";
 
-@ApiTags('Messages')
+@ApiTags("Messages")
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Controller('messages')
+@Controller("messages")
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
   // Chat Rooms Endpoints
 
-  @Post('chat-rooms')
-  @ApiOperation({ summary: 'Create a new chat room' })
-  @ApiResponse({ status: HttpStatus.CREATED, description: 'Chat room created successfully' })
-  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid request data' })
+  @Post("chat-rooms")
+  @ApiOperation({ summary: "Create a new chat room" })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: "Chat room created successfully",
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: "Invalid request data",
+  })
   async createChatRoom(
     @Body() body: { name: string; type: string; participantIds?: string[] },
     @Request() req: RequestWithUser, // Змінено з 'any'
   ) {
-    if (!body.name) throw new BadRequestException('Chat room name is required');
+    if (!body.name) throw new BadRequestException("Chat room name is required");
 
     const typeUpper = body.type.toUpperCase();
 
@@ -56,24 +69,37 @@ export class MessagesController {
       participantIds: body.participantIds || [],
     };
 
-    return this.messagesService.createChatRoom(createChatRoomDto, req.user.userId);
+    return this.messagesService.createChatRoom(
+      createChatRoomDto,
+      req.user.userId,
+    );
   }
 
-  @Get('chat-rooms')
-  @ApiOperation({ summary: 'Get user chat rooms' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Chat rooms retrieved successfully' })
-  async getUserChatRooms(@Request() req: RequestWithUser) { // Змінено з 'any'
+  @Get("chat-rooms")
+  @ApiOperation({ summary: "Get user chat rooms" })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Chat rooms retrieved successfully",
+  })
+  async getUserChatRooms(@Request() req: RequestWithUser) {
+    // Змінено з 'any'
     return this.messagesService.getUserChatRooms(req.user.userId);
   }
 
-  @Get('chat-rooms/:chatRoomId')
-  @ApiOperation({ summary: 'Get chat room details' })
-  @ApiParam({ name: 'chatRoomId', description: 'Chat room ID' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Chat room details retrieved successfully' })
-  @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Chat room not found' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Access denied' })
+  @Get("chat-rooms/:chatRoomId")
+  @ApiOperation({ summary: "Get chat room details" })
+  @ApiParam({ name: "chatRoomId", description: "Chat room ID" })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Chat room details retrieved successfully",
+  })
+  @ApiResponse({
+    status: HttpStatus.NOT_FOUND,
+    description: "Chat room not found",
+  })
+  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: "Access denied" })
   async getChatRoom(
-    @Param('chatRoomId', ParseUUIDPipe) chatRoomId: string,
+    @Param("chatRoomId", ParseUUIDPipe) chatRoomId: string,
     @Request() req: RequestWithUser, // Змінено з 'any'
   ) {
     return this.messagesService.getChatRoomById(chatRoomId, req.user.userId);
@@ -82,20 +108,32 @@ export class MessagesController {
   // Messages Endpoints
 
   @Post()
-  @ApiOperation({ summary: 'Send a new message' })
-  @ApiResponse({ status: HttpStatus.CREATED, description: 'Message sent successfully' })
-  @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid message data' })
+  @ApiOperation({ summary: "Send a new message" })
+  @ApiResponse({
+    status: HttpStatus.CREATED,
+    description: "Message sent successfully",
+  })
+  @ApiResponse({
+    status: HttpStatus.BAD_REQUEST,
+    description: "Invalid message data",
+  })
   async createMessage(
     @Body() createMessageDto: CreateMessageDto,
     @Request() req: RequestWithUser, // Змінено з 'any'
   ) {
-    return this.messagesService.createMessage(createMessageDto, req.user.userId);
+    return this.messagesService.createMessage(
+      createMessageDto,
+      req.user.userId,
+    );
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get messages with filters' })
-  @ApiQuery({ name: 'chatRoomId', required: true })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Messages retrieved successfully' })
+  @ApiOperation({ summary: "Get messages with filters" })
+  @ApiQuery({ name: "chatRoomId", required: true })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Messages retrieved successfully",
+  })
   async getMessages(
     @Query() filters: MessageFiltersDto,
     @Request() req: RequestWithUser, // Змінено з 'any'
@@ -103,26 +141,42 @@ export class MessagesController {
     return this.messagesService.getMessages(filters, req.user.userId);
   }
 
-  @Put(':messageId')
-  @ApiOperation({ summary: 'Update a message' })
-  @ApiParam({ name: 'messageId', description: 'Message ID' })
-  @ApiResponse({ status: HttpStatus.OK, description: 'Message updated successfully' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Not allowed to edit this message' })
+  @Put(":messageId")
+  @ApiOperation({ summary: "Update a message" })
+  @ApiParam({ name: "messageId", description: "Message ID" })
+  @ApiResponse({
+    status: HttpStatus.OK,
+    description: "Message updated successfully",
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: "Not allowed to edit this message",
+  })
   async updateMessage(
-    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Param("messageId", ParseUUIDPipe) messageId: string,
     @Body() updateMessageDto: UpdateMessageDto,
     @Request() req: RequestWithUser, // Змінено з 'any'
   ) {
-    return this.messagesService.updateMessage(messageId, updateMessageDto, req.user.userId);
+    return this.messagesService.updateMessage(
+      messageId,
+      updateMessageDto,
+      req.user.userId,
+    );
   }
 
-  @Delete(':messageId')
-  @ApiOperation({ summary: 'Delete a message' })
-  @ApiParam({ name: 'messageId', description: 'Message ID' })
-  @ApiResponse({ status: HttpStatus.NO_CONTENT, description: 'Message deleted successfully' })
-  @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Not allowed to delete this message' })
+  @Delete(":messageId")
+  @ApiOperation({ summary: "Delete a message" })
+  @ApiParam({ name: "messageId", description: "Message ID" })
+  @ApiResponse({
+    status: HttpStatus.NO_CONTENT,
+    description: "Message deleted successfully",
+  })
+  @ApiResponse({
+    status: HttpStatus.FORBIDDEN,
+    description: "Not allowed to delete this message",
+  })
   async deleteMessage(
-    @Param('messageId', ParseUUIDPipe) messageId: string,
+    @Param("messageId", ParseUUIDPipe) messageId: string,
     @Request() req: RequestWithUser, // Змінено з 'any'
   ) {
     await this.messagesService.deleteMessage(messageId, req.user.userId);

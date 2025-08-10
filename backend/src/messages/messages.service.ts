@@ -4,7 +4,12 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { $Enums, type ChatRoom, type Message } from "@prisma/client";
+import {
+  $Enums,
+  type ChatRoom,
+  type Message,
+  type Prisma,
+} from "@prisma/client"; // Додано 'Prisma'
 import type { PrismaService } from "../prisma/prisma.service";
 import type { CreateChatRoomDto } from "./dto/create-chat-room.dto";
 import type { CreateMessageDto } from "./dto/create-message.dto";
@@ -83,19 +88,20 @@ export class MessagesService {
     data: CreateMessageDto,
     userId: string,
   ): Promise<Message> {
-    const messageData: any = {
+    // Змінено з 'any' на Prisma.MessageCreateInput для типової безпеки
+    const messageData: Prisma.MessageCreateInput = {
       content: data.content,
       type: data.type
         ? (data.type as $Enums.MessageType)
         : $Enums.MessageType.TEXT,
       attachmentUrl: data.attachmentUrl,
       attachmentName: data.attachmentName,
-      chatRoom: { connect: { id: data.chatRoomId } },
-      sender: { connect: { id: userId } },
+      chatRoom: { connect: { id: data.chatRoomId } }, // Підключення до чат-кімнати
+      sender: { connect: { id: userId } }, // Підключення до відправника
     };
 
     if (data.replyToId) {
-      messageData.replyTo = { connect: { id: data.replyToId } };
+      messageData.replyTo = { connect: { id: data.replyToId } }; // Підключення до повідомлення-відповіді
     }
 
     return this.prisma.message.create({
