@@ -1,16 +1,19 @@
-import type { Request } from "express";
+import { Request } from 'express'; // Імпорт Request з 'express'
 
-// Цей інтерфейс описує структуру об'єкта користувача,
-// який додається до запиту після автентифікації.
-export interface UserPayload {
-  userId: string;
+// Визначає структуру корисного навантаження JWT після перевірки
+// Зверніть увагу на 'export'
+export interface JwtPayload {
+  sub: string; // Зазвичай це ID користувача
   email: string;
-  // Додайте будь-які інші властивості, які є у вашому об'єкті користувача
-  // наприклад: roles: string[];
+  role: string; // Додано властивість 'role'
+  // Додайте будь-які інші властивості, які може містити ваше корисне навантаження JWT
 }
 
-// Цей інтерфейс розширює стандартний Request і додає властивість 'user'
-// з типом UserPayload.
+// Розширює стандартний інтерфейс Request для включення властивості 'user'
 export interface RequestWithUser extends Request {
-  user: UserPayload;
+  user: {
+    userId: string;
+    email: string;
+    role: string; // Додано властивість 'role' до UserPayload
+  };
 }
