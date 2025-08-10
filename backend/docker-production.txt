@@ -1,25 +1,23 @@
-# Use official Bun Alpine base image
-FROM oven/bun:1-alpine
-
-# Set working directory
+# Build stage
+FROM oven/bun:1-alpine AS builder
 WORKDIR /app
 
-# Обновлення apk, установка необхідних пакетів і очищення кешу
-RUN apk update && apk upgrade && \
-    apk add --no-cache dumb-init curl ca-certificates && \
-    rm -rf /var/cache/apk/*
-
-# Копіюємо package.json і bun.lockb (якщо є)
 COPY package.json bun.lockb* ./
+RUN bun install --frozen-lockfile
 
-# Встановлюємо залежності, без devDependencies (production mode)
+COPY . .
+RUN bun run build
+
+# Production stage
+FROM oven/bun:1-alpine
+WORKDIR /app
+
+RUN apk add --no-cache dumb-init curl ca-certificates
+
+COPY package.json bun.lockb* ./
 RUN bun install --frozen-lockfile --production
 
-# Копіюємо все решту файлів проєкту
-COPY . .
+COPY --from=builder /app/.output ./.output
 
-# Запускаємо додаток з dumb-init для кращого оброблення сигналів
 ENTRYPOINT ["dumb-init", "--"]
-
-# Команда для запуску (підкоригуй під свій стартовий скрипт)
 CMD ["bun", "run", "start"]
