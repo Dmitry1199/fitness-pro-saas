@@ -11,6 +11,7 @@ import {
   Request,
   HttpStatus,
   ParseUUIDPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -28,16 +29,13 @@ import type { MessageFiltersDto } from './dto/message-filters.dto';
 export class MessagesController {
   constructor(private readonly messagesService: MessagesService) {}
 
-  // Chat Rooms Endpoints
+  // Chat Rooms
 
   @Post('chat-rooms')
   @ApiOperation({ summary: 'Create a new chat room' })
   @ApiResponse({ status: HttpStatus.CREATED, description: 'Chat room created successfully' })
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid request data' })
-  async createChatRoom(
-    @Body() createChatRoomDto: CreateChatRoomDto,
-    @Request() req: any,
-  ) {
+  async createChatRoom(@Body() createChatRoomDto: CreateChatRoomDto, @Request() req: any) {
     return this.messagesService.createChatRoom(createChatRoomDto, req.user.userId);
   }
 
@@ -54,30 +52,27 @@ export class MessagesController {
   @ApiResponse({ status: HttpStatus.OK, description: 'Chat room details retrieved successfully' })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Chat room not found' })
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Access denied' })
-  async getChatRoom(
-    @Param('chatRoomId', ParseUUIDPipe) chatRoomId: string,
-    @Request() req: any,
-  ) {
+  async getChatRoom(@Param('chatRoomId', ParseUUIDPipe) chatRoomId: string, @Request() req: any) {
     return this.messagesService.getChatRoomById(chatRoomId, req.user.userId);
   }
 
-  // Messages Endpoints
+  // Messages
 
   @Post()
   @ApiOperation({ summary: 'Send a new message' })
   @ApiResponse({ status: HttpStatus.CREATED, description: 'Message sent successfully' })
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid message data' })
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Access denied to chat room' })
-  async createMessage(
-    @Body() createMessageDto: CreateMessageDto,
-    @Request() req: any,
-  ) {
+  async createMessage(@Body() createMessageDto: CreateMessageDto, @Request() req: any) {
+    if (!createMessageDto.chatRoomId) {
+      throw new BadRequestException('chatRoomId is required');
+    }
     return this.messagesService.createMessage(createMessageDto, req.user.userId);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get messages with filtering and pagination' })
-  @ApiQuery({ name: 'chatRoomId', required: false, description: 'Filter by chat room ID' })
+  @ApiQuery({ name: 'chatRoomId', required: true, description: 'Filter by chat room ID' })
   @ApiQuery({ name: 'type', required: false, description: 'Filter by message type' })
   @ApiQuery({ name: 'fromDate', required: false, description: 'Filter from date (ISO string)' })
   @ApiQuery({ name: 'toDate', required: false, description: 'Filter to date (ISO string)' })
@@ -85,10 +80,10 @@ export class MessagesController {
   @ApiQuery({ name: 'page', required: false, description: 'Page number (default: 1)' })
   @ApiQuery({ name: 'limit', required: false, description: 'Items per page (default: 20)' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Messages retrieved successfully' })
-  async getMessages(
-    @Query() filters: MessageFiltersDto,
-    @Request() req: any,
-  ) {
+  async getMessages(@Query() filters: MessageFiltersDto, @Request() req: any) {
+    if (!filters.chatRoomId) {
+      throw new BadRequestException('chatRoomId query parameter is required');
+    }
     return this.messagesService.getMessages(filters, req.user.userId);
   }
 
@@ -112,10 +107,7 @@ export class MessagesController {
   @ApiResponse({ status: HttpStatus.OK, description: 'Message deleted successfully' })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Message not found' })
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Cannot delete this message' })
-  async deleteMessage(
-    @Param('messageId', ParseUUIDPipe) messageId: string,
-    @Request() req: any,
-  ) {
+  async deleteMessage(@Param('messageId', ParseUUIDPipe) messageId: string, @Request() req: any) {
     return this.messagesService.deleteMessage(messageId, req.user.userId);
   }
 
@@ -126,10 +118,7 @@ export class MessagesController {
   @ApiParam({ name: 'messageId', description: 'Message ID' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Message marked as read' })
   @ApiResponse({ status: HttpStatus.NOT_FOUND, description: 'Message not found' })
-  async markMessageAsRead(
-    @Param('messageId', ParseUUIDPipe) messageId: string,
-    @Request() req: any,
-  ) {
+  async markMessageAsRead(@Param('messageId', ParseUUIDPipe) messageId: string, @Request() req: any) {
     return this.messagesService.markMessageAsRead(messageId, req.user.userId);
   }
 
@@ -162,10 +151,10 @@ export class MessagesController {
   @ApiOperation({ summary: 'Create or get existing direct chat with another user' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Direct chat created or retrieved' })
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid user ID' })
-  async createDirectChat(
-    @Body() body: { participantId: string },
-    @Request() req: any,
-  ) {
+  async createDirectChat(@Body() body: { participantId: string }, @Request() req: any) {
+    if (!body.participantId) {
+      throw new BadRequestException('participantId is required');
+    }
     const createChatRoomDto: CreateChatRoomDto = {
       type: 'DIRECT' as any,
       participantIds: [req.user.userId, body.participantId],
@@ -188,6 +177,7 @@ export class MessagesController {
     @Request() req: any,
   ) {
     const filters: MessageFiltersDto = {
+      chatRoomId: '', // Якщо треба пошук по всіх чатах, можна в сервісі врахувати пустий chatRoomId
       search: query,
       page: pagination.page || 1,
       limit: pagination.limit || 20,
@@ -201,14 +191,13 @@ export class MessagesController {
   @Post('bulk/mark-read')
   @ApiOperation({ summary: 'Mark multiple messages as read' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Messages marked as read' })
-  async markMultipleMessagesAsRead(
-    @Body() body: { messageIds: string[] },
-    @Request() req: any,
-  ) {
+  async markMultipleMessagesAsRead(@Body() body: { messageIds: string[] }, @Request() req: any) {
+    if (!body.messageIds || !Array.isArray(body.messageIds) || body.messageIds.length === 0) {
+      throw new BadRequestException('messageIds must be a non-empty array');
+    }
+
     const results = await Promise.allSettled(
-      body.messageIds.map(messageId =>
-        this.messagesService.markMessageAsRead(messageId, req.user.userId)
-      )
+      body.messageIds.map(messageId => this.messagesService.markMessageAsRead(messageId, req.user.userId)),
     );
 
     const successCount = results.filter(result => result.status === 'fulfilled').length;
