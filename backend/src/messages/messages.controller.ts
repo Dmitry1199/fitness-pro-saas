@@ -25,7 +25,7 @@ import { ChatRoomType } from "@prisma/client";
 import { JwtAuthGuard } from "../auth/guards/jwt-auth.guard";
 import { RolesGuard } from "../auth/guards/roles.guard";
 // Імпортуємо інтерфейс RequestWithUser
-import type { RequestWithUser } from "../common/interfaces/request-with-user.interface";
+import type { RequestWithUser } from "../common/interface/request-with-user.interface";
 import type { CreateChatRoomDto } from "./dto/create-chat-room.dto";
 import type { CreateMessageDto } from "./dto/create-message.dto";
 import type { MessageFiltersDto } from "./dto/message-filters.dto";

@@ -9,7 +9,7 @@ import type { Request } from "express"; // Import Request from 'express' to ensu
 import type {
   JwtPayload,
   RequestWithUser,
-} from "../../common/interfaces/request-with-user.interface"; // Adjust path as needed
+} from "../../common/interface/request-with-user.interface"; // Adjust path as needed
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard("jwt") {
