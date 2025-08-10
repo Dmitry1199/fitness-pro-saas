@@ -29,39 +29,36 @@ export class PrismaService
   async cleanDatabase() {
     if (process.env.NODE_ENV === "production") return;
 
-    // Визначимо тип для властивості, яка може бути делегатом моделі Prisma
-    // (тобто має метод `deleteMany`).
-    type PossibleModelDelegate = {
+    // Визначаємо тип для делегата моделі Prisma, який має метод `deleteMany`.
+    type ModelDelegateWithDeleteMany = {
       deleteMany: () => Promise<Prisma.BatchPayload>;
     };
 
-    // Отримуємо всі ключі з екземпляра PrismaClient (this)
+    // Отримуємо всі ключі з `this` (екземпляра PrismaClient) та фільтруємо їх.
     const modelKeys = Object.keys(this).filter((key) => {
-      // Доступ до властивості за ключем, спочатку вважаючи її тип `unknown`.
-      // Це дозволяє безпечно індексувати об'єкт за рядковим ключем без використання 'any'.
-      const prop = (this as Record<string, unknown>)[key];
+      // Спочатку звертаємося до властивості, приводячи `this` до `unknown`, а потім до `Record<string, unknown>`.
+      // Це необхідно для відповідності TS2352, коли базовий тип (PrismaService) не має строкової індексної сигнатури.
+      const prop = (this as unknown as Record<string, unknown>)[key];
 
-      // Фільтруємо внутрішні властивості Prisma (що починаються з '$' або '_')
-      // та перевіряємо, чи є властивість об'єктом і чи має вона метод 'deleteMany'.
+      // Фільтруємо внутрішні властивості/методи Prisma, які починаються з '$' або '_',
+      // та переконуємося, що властивість є об'єктом і має метод 'deleteMany'.
       return (
-        !key.startsWith("$") && // Виключаємо внутрішні методи Prisma ($connect, $disconnect тощо)
-        !key.startsWith("_") && // Виключаємо внутрішні властивості Prisma
-        typeof prop === "object" && // Перевіряємо, чи є властивість об'єктом
-        prop !== null && // Перевіряємо, що об'єкт не є null
-        typeof (prop as PossibleModelDelegate).deleteMany === "function" // Перевіряємо, чи є 'deleteMany' функцією
+        !key.startsWith("$") &&
+        !key.startsWith("_") &&
+        typeof prop === "object" &&
+        prop !== null && // Переконуємося, що властивість не є null
+        "deleteMany" in prop && // Перевіряємо, чи існує властивість 'deleteMany' на об'єкті
+        typeof (prop as ModelDelegateWithDeleteMany).deleteMany === "function" // Переконуємося, що 'deleteMany' є функцією
       );
     });
 
-    // Мапуємо відфільтровані ключі, щоб викликати `deleteMany()` на кожному делегаті моделі.
+    // Мапуємо кожен відфільтрований ключ моделі на його обіцянку `deleteMany`.
     return Promise.all(
       modelKeys.map((modelKey) => {
-        // Тепер, після ретельної фільтрації, ми можемо впевнено перетворити властивість
-        // на наш допоміжний тип `PossibleModelDelegate`, оскільки ми знаємо,
-        // що вона має метод `deleteMany`.
-        const modelDelegate = (this as Record<string, PossibleModelDelegate>)[
-          modelKey
-        ];
-        return modelDelegate.deleteMany(); // Викликаємо метод `deleteMany`
+        // Після фільтрації та перевірки типу, ми можемо безпечно привести `this` знову
+        // до типу Record, який конкретно вказує на делегати моделі, дозволяючи доступ до `deleteMany`.
+        const modelDelegate = (this as unknown as Record<string, ModelDelegateWithDeleteMany>)[modelKey];
+        return modelDelegate.deleteMany();
       }),
     );
   }

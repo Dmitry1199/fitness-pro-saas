@@ -1,3 +1,5 @@
+import { Injectable } from "@nestjs/common"; // <--- Add this import
+
 interface HelloResponse {
   message: string;
   version: string;
