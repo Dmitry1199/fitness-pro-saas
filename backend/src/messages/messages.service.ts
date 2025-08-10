@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { $Enums, ChatRoom, Message } from '@prisma/client';
 import { CreateChatRoomDto } from './dto/create-chat-room.dto';
@@ -9,25 +9,19 @@ import { UpdateMessageDto } from './dto/update-message.dto';
 export class MessagesService {
   constructor(private prisma: PrismaService) {}
 
-  // Створення нового чатруму з вказівкою користувача, який створює
   async createChatRoom(data: CreateChatRoomDto, userId: string): Promise<ChatRoom> {
+    if (!data.name) {
+      throw new BadRequestException('Chat room name is required');
+    }
     return this.prisma.chatRoom.create({
       data: {
-        ...data,
+        name: data.name,
+        description: data.description,
         type: data.type as $Enums.ChatRoomType,
         createdBy: { connect: { id: userId } },
-      },
-    });
-  }
-
-  // Отримання усіх чатрумів користувача
-  async getUserChatRooms(userId: string): Promise<ChatRoom[]> {
-    return this.prisma.chatRoom.findMany({
-      where: {
-        OR: [
-          { createdById: userId },
-          { participants: { some: { userId } } }
-        ]
+        participants: {
+          create: data.participantIds.map(id => ({ userId: id })),
+        },
       },
       include: {
         participants: true,
@@ -36,7 +30,21 @@ export class MessagesService {
     });
   }
 
-  // Отримання чатруму за ID, перевірка, що користувач має доступ
+  async getUserChatRooms(userId: string): Promise<ChatRoom[]> {
+    return this.prisma.chatRoom.findMany({
+      where: {
+        OR: [
+          { createdById: userId },
+          { participants: { some: { userId } } },
+        ],
+      },
+      include: {
+        participants: true,
+        createdBy: true,
+      },
+    });
+  }
+
   async getChatRoomById(chatRoomId: string, userId: string): Promise<ChatRoom> {
     const chatRoom = await this.prisma.chatRoom.findUnique({
       where: { id: chatRoomId },
@@ -48,7 +56,6 @@ export class MessagesService {
 
     if (!chatRoom) throw new NotFoundException('ChatRoom not found');
 
-    // Перевірка, чи є користувач учасником або створив чат
     const isParticipant = chatRoom.participants.some(p => p.userId === userId);
     if (chatRoom.createdById !== userId && !isParticipant) {
       throw new ForbiddenException('Access denied to chat room');
@@ -57,7 +64,6 @@ export class MessagesService {
     return chatRoom;
   }
 
-  // Створення повідомлення у чаті
   async createMessage(data: CreateMessageDto, userId: string): Promise<Message> {
     return this.prisma.message.create({
       data: {
@@ -65,28 +71,59 @@ export class MessagesService {
         type: (data.type || $Enums.MessageType.TEXT) as $Enums.MessageType,
         attachmentUrl: data.attachmentUrl,
         attachmentName: data.attachmentName,
-        replyTo: data.replyToId ? { connect: { id: data.replyToId } } : undefined,
+        replyToId: data.replyToId,
         chatRoom: { connect: { id: data.chatRoomId } },
         sender: { connect: { id: userId } },
+      },
+      include: {
+        sender: true,
       },
     });
   }
 
-  // Отримання повідомлень за фільтрами (наприклад, chatRoomId)
-  async getMessages(filters: { chatRoomId: string }, userId: string): Promise<Message[]> {
-    // Можна додати перевірку доступу за userId, якщо треба
+  async getMessages(filters: MessageFiltersDto, userId: string): Promise<Message[]> {
+    if (!filters.chatRoomId) {
+      throw new BadRequestException('chatRoomId is required');
+    }
+
+    const where: any = {
+      chatRoomId: filters.chatRoomId,
+    };
+
+    if (filters.type) {
+      where.type = filters.type;
+    }
+
+    if (filters.fromDate || filters.toDate) {
+      where.createdAt = {};
+      if (filters.fromDate) where.createdAt.gte = new Date(filters.fromDate);
+      if (filters.toDate) where.createdAt.lte = new Date(filters.toDate);
+    }
+
+    if (filters.search) {
+      where.content = {
+        contains: filters.search,
+        mode: 'insensitive',
+      };
+    }
+
+    const page = filters.page ?? 1;
+    const limit = filters.limit ?? 20;
+    const skip = (page - 1) * limit;
+
     return this.prisma.message.findMany({
-      where: filters,
+      where,
       orderBy: { createdAt: 'asc' },
       include: {
         sender: true,
         reactions: true,
         readBy: true,
       },
+      skip,
+      take: limit,
     });
   }
 
-  // Оновлення повідомлення (перевірка автора)
   async updateMessage(messageId: string, dto: UpdateMessageDto, userId: string): Promise<Message> {
     const message = await this.prisma.message.findUnique({ where: { id: messageId } });
     if (!message) throw new NotFoundException('Message not found');
@@ -95,17 +132,13 @@ export class MessagesService {
     return this.prisma.message.update({
       where: { id: messageId },
       data: {
-        content: dto.content,
+        ...dto,
         isEdited: true,
         editedAt: new Date(),
-        // Не оновлюємо chatRoomId чи replyToId напряму,
-        // Якщо потрібно оновити replyTo, можна додати логіку як нижче:
-        // replyTo: dto.replyToId ? { connect: { id: dto.replyToId } } : undefined,
       },
     });
   }
 
-  // Видалення повідомлення (перевірка автора)
   async deleteMessage(messageId: string, userId: string): Promise<void> {
     const message = await this.prisma.message.findUnique({ where: { id: messageId } });
     if (!message) throw new NotFoundException('Message not found');
@@ -114,9 +147,7 @@ export class MessagesService {
     await this.prisma.message.delete({ where: { id: messageId } });
   }
 
-  // Позначити повідомлення як прочитане користувачем
   async markMessageAsRead(messageId: string, userId: string): Promise<void> {
-    // Створюємо запис, якщо його ще немає
     await this.prisma.messageRead.upsert({
       where: { messageId_userId: { messageId, userId } },
       update: { readAt: new Date() },
@@ -124,7 +155,6 @@ export class MessagesService {
     });
   }
 
-  // Додати реакцію до повідомлення
   async addReaction(messageId: string, reaction: string, userId: string): Promise<void> {
     await this.prisma.messageReaction.upsert({
       where: { messageId_userId_reaction: { messageId, userId, reaction } },
@@ -133,22 +163,16 @@ export class MessagesService {
     });
   }
 
-  // Підрахунок непрочитаних повідомлень користувача
   async getUnreadMessagesCount(userId: string): Promise<number> {
-    // Підрахунок повідомлень, де немає запису про прочитання користувачем
     return this.prisma.message.count({
       where: {
         NOT: {
-          readBy: {
-            some: { userId }
-          }
+          readBy: { some: { userId } },
         },
         chatRoom: {
-          participants: {
-            some: { userId }
-          }
-        }
-      }
+          participants: { some: { userId } },
+        },
+      },
     });
   }
 }

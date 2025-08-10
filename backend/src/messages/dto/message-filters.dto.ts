@@ -1,45 +1,34 @@
-import { IsOptional, IsUUID, IsEnum, IsDateString, IsNumber, Min, Max } from 'class-validator';
-import { Type } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
-import { MessageType } from './create-message.dto';
+import { IsOptional, IsString, IsEnum, IsDateString, IsInt, Min } from 'class-validator';
+import { MessageType } from '@prisma/client';
 
 export class MessageFiltersDto {
-  @ApiProperty({ description: 'Chat room ID to filter messages', required: false })
-  @IsUUID()
   @IsOptional()
-  chatRoomId?: string;
+  @IsString()
+  chatRoomId?: string;  // зроблено необов’язковим, щоб не було помилки у контролері
 
-  @ApiProperty({ description: 'Message type filter', enum: MessageType, required: false })
-  @IsEnum(MessageType)
   @IsOptional()
+  @IsEnum(MessageType)
   type?: MessageType;
 
-  @ApiProperty({ description: 'Filter from date', required: false })
-  @IsDateString()
   @IsOptional()
+  @IsDateString()
   fromDate?: string;
 
-  @ApiProperty({ description: 'Filter to date', required: false })
-  @IsDateString()
   @IsOptional()
+  @IsDateString()
   toDate?: string;
 
-  @ApiProperty({ description: 'Search query in message content', required: false })
   @IsOptional()
+  @IsString()
   search?: string;
 
-  @ApiProperty({ description: 'Page number', default: 1 })
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
   @IsOptional()
-  page?: number = 1;
+  @IsInt()
+  @Min(1)
+  page?: number;
 
-  @ApiProperty({ description: 'Items per page', default: 20 })
-  @Type(() => Number)
-  @IsNumber()
-  @Min(1)
-  @Max(100)
   @IsOptional()
-  limit?: number = 20;
+  @IsInt()
+  @Min(1)
+  limit?: number;
 }
