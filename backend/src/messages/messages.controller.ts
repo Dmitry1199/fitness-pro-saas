@@ -1,27 +1,29 @@
 import {
+  BadRequestException,
+  Body,
   Controller,
+  Delete,
   Get,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
   Post,
   Put,
-  Delete,
-  Body,
-  Param,
   Query,
-  UseGuards,
   Request,
-  HttpStatus,
-  ParseUUIDPipe,
-  BadRequestException,
+  UseGuards,
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ChatRoomType } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { MessagesService } from './messages.service';
-import { CreateMessageDto } from './dto/create-message.dto';
-import { CreateChatRoomDto } from './dto/create-chat-room.dto';
-import { ChatRoomType } from '@prisma/client';
-import { UpdateMessageDto } from './dto/update-message.dto';
-import { MessageFiltersDto } from './dto/message-filters.dto';
+// Імпортуємо інтерфейс RequestWithUser
+import type { RequestWithUser } from '../common/interfaces/request-with-user.interface'; 
+import type { CreateChatRoomDto } from './dto/create-chat-room.dto';
+import type { CreateMessageDto } from './dto/create-message.dto';
+import type { MessageFiltersDto } from './dto/message-filters.dto';
+import type { UpdateMessageDto } from './dto/update-message.dto';
+import type { MessagesService } from './messages.service';
 
 @ApiTags('Messages')
 @ApiBearerAuth()
@@ -38,7 +40,7 @@ export class MessagesController {
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid request data' })
   async createChatRoom(
     @Body() body: { name: string; type: string; participantIds?: string[] },
-    @Request() req: any,
+    @Request() req: RequestWithUser, // Змінено з 'any'
   ) {
     if (!body.name) throw new BadRequestException('Chat room name is required');
 
@@ -60,7 +62,7 @@ export class MessagesController {
   @Get('chat-rooms')
   @ApiOperation({ summary: 'Get user chat rooms' })
   @ApiResponse({ status: HttpStatus.OK, description: 'Chat rooms retrieved successfully' })
-  async getUserChatRooms(@Request() req: any) {
+  async getUserChatRooms(@Request() req: RequestWithUser) { // Змінено з 'any'
     return this.messagesService.getUserChatRooms(req.user.userId);
   }
 
@@ -72,7 +74,7 @@ export class MessagesController {
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Access denied' })
   async getChatRoom(
     @Param('chatRoomId', ParseUUIDPipe) chatRoomId: string,
-    @Request() req: any,
+    @Request() req: RequestWithUser, // Змінено з 'any'
   ) {
     return this.messagesService.getChatRoomById(chatRoomId, req.user.userId);
   }
@@ -85,7 +87,7 @@ export class MessagesController {
   @ApiResponse({ status: HttpStatus.BAD_REQUEST, description: 'Invalid message data' })
   async createMessage(
     @Body() createMessageDto: CreateMessageDto,
-    @Request() req: any,
+    @Request() req: RequestWithUser, // Змінено з 'any'
   ) {
     return this.messagesService.createMessage(createMessageDto, req.user.userId);
   }
@@ -96,7 +98,7 @@ export class MessagesController {
   @ApiResponse({ status: HttpStatus.OK, description: 'Messages retrieved successfully' })
   async getMessages(
     @Query() filters: MessageFiltersDto,
-    @Request() req: any,
+    @Request() req: RequestWithUser, // Змінено з 'any'
   ) {
     return this.messagesService.getMessages(filters, req.user.userId);
   }
@@ -109,7 +111,7 @@ export class MessagesController {
   async updateMessage(
     @Param('messageId', ParseUUIDPipe) messageId: string,
     @Body() updateMessageDto: UpdateMessageDto,
-    @Request() req: any,
+    @Request() req: RequestWithUser, // Змінено з 'any'
   ) {
     return this.messagesService.updateMessage(messageId, updateMessageDto, req.user.userId);
   }
@@ -121,7 +123,7 @@ export class MessagesController {
   @ApiResponse({ status: HttpStatus.FORBIDDEN, description: 'Not allowed to delete this message' })
   async deleteMessage(
     @Param('messageId', ParseUUIDPipe) messageId: string,
-    @Request() req: any,
+    @Request() req: RequestWithUser, // Змінено з 'any'
   ) {
     await this.messagesService.deleteMessage(messageId, req.user.userId);
   }

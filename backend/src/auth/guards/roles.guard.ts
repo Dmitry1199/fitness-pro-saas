@@ -1,10 +1,14 @@
-import { Injectable, type CanActivate, type ExecutionContext } from '@nestjs/common';
-import { Reflector } from '@nestjs/core';
+import {
+  type CanActivate,
+  type ExecutionContext,
+  Injectable,
+} from "@nestjs/common";
+import { Reflector } from "@nestjs/core";
 
 export enum Role {
-  ADMIN = 'ADMIN',
-  TRAINER = 'TRAINER',
-  CLIENT = 'CLIENT',
+  ADMIN = "ADMIN",
+  TRAINER = "TRAINER",
+  CLIENT = "CLIENT",
 }
 
 export const Roles = Reflector.createDecorator<Role[]>();

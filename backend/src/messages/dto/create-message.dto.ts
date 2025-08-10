@@ -1,5 +1,5 @@
-import { IsString, IsEnum, IsOptional, IsUUID } from 'class-validator';
-import { MessageType } from '@prisma/client';
+import { MessageType } from "@prisma/client";
+import { IsEnum, IsOptional, IsString, IsUUID } from "class-validator";
 
 export class CreateMessageDto {
   @IsString()

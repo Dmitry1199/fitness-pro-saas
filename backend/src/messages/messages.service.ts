@@ -1,20 +1,28 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
-import { $Enums, ChatRoom, Message } from '@prisma/client';
-import type { CreateChatRoomDto } from './dto/create-chat-room.dto';
-import type { CreateMessageDto } from './dto/create-message.dto';
-import type { UpdateMessageDto } from './dto/update-message.dto';
-import type { MessageFiltersDto } from './dto/message-filters.dto';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { $Enums, type ChatRoom, type Message } from "@prisma/client";
+import type { PrismaService } from "../prisma/prisma.service";
+import type { CreateChatRoomDto } from "./dto/create-chat-room.dto";
+import type { CreateMessageDto } from "./dto/create-message.dto";
+import type { MessageFiltersDto } from "./dto/message-filters.dto";
+import type { UpdateMessageDto } from "./dto/update-message.dto";
 
 @Injectable()
 export class MessagesService {
   constructor(private prisma: PrismaService) {}
 
-  async createChatRoom(data: CreateChatRoomDto, userId: string): Promise<ChatRoom> {
+  async createChatRoom(
+    data: CreateChatRoomDto,
+    userId: string,
+  ): Promise<ChatRoom> {
     const { participantIds, ...chatRoomData } = data;
 
     if (!chatRoomData.name) {
-      throw new BadRequestException('Chat room name is required');
+      throw new BadRequestException("Chat room name is required");
     }
 
     const chatRoom = await this.prisma.chatRoom.create({
@@ -25,9 +33,9 @@ export class MessagesService {
       },
     });
 
-    if (participantIds && participantIds.length) {
+    if (participantIds?.length) {
       await this.prisma.chatRoomParticipant.createMany({
-        data: participantIds.map(id => ({
+        data: participantIds.map((id) => ({
           chatRoomId: chatRoom.id,
           userId: id,
         })),
@@ -41,10 +49,7 @@ export class MessagesService {
   async getUserChatRooms(userId: string): Promise<ChatRoom[]> {
     return this.prisma.chatRoom.findMany({
       where: {
-        OR: [
-          { createdById: userId },
-          { participants: { some: { userId } } },
-        ],
+        OR: [{ createdById: userId }, { participants: { some: { userId } } }],
       },
       include: {
         participants: true,
@@ -62,20 +67,27 @@ export class MessagesService {
       },
     });
 
-    if (!chatRoom) throw new NotFoundException('ChatRoom not found');
+    if (!chatRoom) throw new NotFoundException("ChatRoom not found");
 
-    const isParticipant = chatRoom.participants.some(p => p.userId === userId);
+    const isParticipant = chatRoom.participants.some(
+      (p) => p.userId === userId,
+    );
     if (chatRoom.createdById !== userId && !isParticipant) {
-      throw new ForbiddenException('Access denied to chat room');
+      throw new ForbiddenException("Access denied to chat room");
     }
 
     return chatRoom;
   }
 
-  async createMessage(data: CreateMessageDto, userId: string): Promise<Message> {
+  async createMessage(
+    data: CreateMessageDto,
+    userId: string,
+  ): Promise<Message> {
     const messageData: any = {
       content: data.content,
-      type: data.type ? (data.type as $Enums.MessageType) : $Enums.MessageType.TEXT,
+      type: data.type
+        ? (data.type as $Enums.MessageType)
+        : $Enums.MessageType.TEXT,
       attachmentUrl: data.attachmentUrl,
       attachmentName: data.attachmentName,
       chatRoom: { connect: { id: data.chatRoomId } },
@@ -91,9 +103,12 @@ export class MessagesService {
     });
   }
 
-  async getMessages(filters: MessageFiltersDto, userId: string): Promise<Message[]> {
+  async getMessages(
+    filters: MessageFiltersDto,
+    userId: string,
+  ): Promise<Message[]> {
     if (!filters.chatRoomId) {
-      throw new BadRequestException('chatRoomId is required');
+      throw new BadRequestException("chatRoomId is required");
     }
 
     // Можна додати перевірку доступу користувача
@@ -102,7 +117,7 @@ export class MessagesService {
       where: {
         chatRoomId: filters.chatRoomId,
       },
-      orderBy: { createdAt: 'asc' },
+      orderBy: { createdAt: "asc" },
       include: {
         sender: true,
         reactions: true,
@@ -111,10 +126,17 @@ export class MessagesService {
     });
   }
 
-  async updateMessage(messageId: string, dto: UpdateMessageDto, userId: string): Promise<Message> {
-    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
-    if (!message) throw new NotFoundException('Message not found');
-    if (message.senderId !== userId) throw new ForbiddenException('Cannot edit others messages');
+  async updateMessage(
+    messageId: string,
+    dto: UpdateMessageDto,
+    userId: string,
+  ): Promise<Message> {
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+    });
+    if (!message) throw new NotFoundException("Message not found");
+    if (message.senderId !== userId)
+      throw new ForbiddenException("Cannot edit others messages");
 
     return this.prisma.message.update({
       where: { id: messageId },
@@ -127,9 +149,12 @@ export class MessagesService {
   }
 
   async deleteMessage(messageId: string, userId: string): Promise<void> {
-    const message = await this.prisma.message.findUnique({ where: { id: messageId } });
-    if (!message) throw new NotFoundException('Message not found');
-    if (message.senderId !== userId) throw new ForbiddenException('Cannot delete others messages');
+    const message = await this.prisma.message.findUnique({
+      where: { id: messageId },
+    });
+    if (!message) throw new NotFoundException("Message not found");
+    if (message.senderId !== userId)
+      throw new ForbiddenException("Cannot delete others messages");
 
     await this.prisma.message.delete({ where: { id: messageId } });
   }
@@ -142,7 +167,11 @@ export class MessagesService {
     });
   }
 
-  async addReaction(messageId: string, reaction: string, userId: string): Promise<void> {
+  async addReaction(
+    messageId: string,
+    reaction: string,
+    userId: string,
+  ): Promise<void> {
     await this.prisma.messageReaction.upsert({
       where: { messageId_userId_reaction: { messageId, userId, reaction } },
       update: {},

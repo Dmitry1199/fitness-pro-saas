@@ -1,24 +1,22 @@
 {
   "compilerOptions": {
-    "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "jsxImportSource": "same-runtime/dist",
+    "module": "commonjs",
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "target": "es2017",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
+    "skipLibCheck": true,
+    "strictNullChecks": false,
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "forceConsistentCasingInFileNames": false,
+    "noFallthroughCasesInSwitch": false,
+    // Якщо "paths" стосується компілятора, воно повинно бути тут
     "paths": {
       "@/*": ["./src/*"]
     }
@@ -31,4 +29,7 @@
     "build/types/**/*.ts"
   ],
   "exclude": ["node_modules"]
+  // "name": "next" - Цей рядок не належить до стандартного tsconfig.json.
+  // Можливо, це частина іншої конфігурації (наприклад, monorepo або пакету),
+  // але не є частиною конфігурації TypeScript.
 }

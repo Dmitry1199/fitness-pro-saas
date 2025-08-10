@@ -1,22 +1,22 @@
-import {
-  WebSocketGateway,
-  WebSocketServer,
-  SubscribeMessage,
-  type OnGatewayConnection,
-  type OnGatewayDisconnect,
-  ConnectedSocket,
-  MessageBody,
-} from '@nestjs/websockets';
-import type { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import type { JwtService } from '@nestjs/jwt';
-import type { MessagesService } from './messages.service';
+import {
+  ConnectedSocket,
+  MessageBody,
+  type OnGatewayConnection,
+  type OnGatewayDisconnect,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+} from '@nestjs/websockets';
+import type { Server, Socket } from 'socket.io';
 import type { CreateMessageDto } from './dto/create-message.dto';
 import type {
   JoinChatRoomDto,
-  TypingIndicatorDto,
   MessageReadDto,
+  TypingIndicatorDto,
 } from './dto/websocket-events.dto';
+import type { MessagesService } from './messages.service';
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;

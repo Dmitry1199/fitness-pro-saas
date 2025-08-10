@@ -1,5 +1,11 @@
-import { IsString, IsEnum, IsOptional, IsArray, ArrayUnique } from 'class-validator';
-import { ChatRoomType } from '@prisma/client';
+import { ChatRoomType } from "@prisma/client";
+import {
+  ArrayUnique,
+  IsArray,
+  IsEnum,
+  IsOptional,
+  IsString,
+} from "class-validator";
 
 export class CreateChatRoomDto {
   @IsString()
