@@ -18,7 +18,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import type { MessagesService } from './messages.service';
 import type { CreateMessageDto } from './dto/create-message.dto';
-import type { CreateChatRoomDto } from './dto/create-chat-room.dto';
+import type { CreateChatRoomDto, ChatRoomType } from './dto/create-chat-room.dto';
 import type { UpdateMessageDto } from './dto/update-message.dto';
 import type { MessageFiltersDto } from './dto/message-filters.dto';
 
@@ -41,9 +41,14 @@ export class MessagesController {
   ) {
     if (!body.name) throw new BadRequestException('Chat room name is required');
 
+    // Перевірка, чи тип валідний згідно з ChatRoomType
+    if (!Object.values(ChatRoomType).includes(body.type as ChatRoomType)) {
+      throw new BadRequestException(`Invalid chat room type: ${body.type}`);
+    }
+
     const createChatRoomDto: CreateChatRoomDto = {
       name: body.name,
-      type: body.type,
+      type: body.type as ChatRoomType,
       participantIds: body.participantIds || [],
     };
 
