@@ -16,20 +16,19 @@
     "strictBindCallApply": false,
     "forceConsistentCasingInFileNames": false,
     "noFallthroughCasesInSwitch": false,
-    // Якщо "paths" стосується компілятора, воно повинно бути тут
     "paths": {
       "@/*": ["./src/*"]
     }
   },
   "include": [
-    "**/*.ts",
-    "**/*.tsx",
+    "src/**/*",
+    "pages/**/*",
     ".next/types/**/*.ts",
     "next-env.d.ts",
     "build/types/**/*.ts"
   ],
-  "exclude": ["node_modules"]
-  // "name": "next" - Цей рядок не належить до стандартного tsconfig.json.
-  // Можливо, це частина іншої конфігурації (наприклад, monorepo або пакету),
-  // але не є частиною конфігурації TypeScript.
+  "exclude": [
+    "node_modules",
+    "backend/netlify/functions/**/*"
+  ]
 }
