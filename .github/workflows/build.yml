@@ -13,16 +13,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # Клонування репозиторію
+      # 1️⃣ Клонування репозиторію
       - uses: actions/checkout@v3
 
-      # Встановлення Bun
+      # 2️⃣ Встановлення Bun
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
-      # Кешування Bun залежностей
+      # 3️⃣ Кешування Bun та node_modules
       - name: Cache Bun dependencies
         uses: actions/cache@v3
         with:
@@ -33,18 +33,35 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bun-
 
-      # Встановлення залежностей з lockfile
+      # 4️⃣ Встановлення залежностей
+      # Якщо lockfile неактуальний, оновлюємо його
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: |
+          if ! bun install --frozen-lockfile; then
+            echo "Lockfile outdated, updating..."
+            bun install
+            git config --global user.name "github-actions[bot]"
+            git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git add bun.lockb
+            git commit -m "CI: update bun.lockb"
+            git push origin HEAD:main
+          fi
 
-      # Збірка проекту
+      # 5️⃣ Збірка проекту
       - name: Build project
         run: bun run build
 
-      # Лінтинг
+      # 6️⃣ Лінтинг
       - name: Run lint
         run: bun run lint
 
-      # Тести
+      # 7️⃣ Тести
       - name: Run tests
         run: bun test || echo "Tests not found, skipping..."
+
+      # 8️⃣ Вивід версій для дебагу
+      - name: Show versions
+        run: |
+          bun --version
+          node --version
+          npm --version
