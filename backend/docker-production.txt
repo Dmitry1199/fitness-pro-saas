@@ -1,3 +1,4 @@
+# -------------------------
 # Етап збірки
 FROM oven/bun:1-alpine AS builder
 
@@ -5,11 +6,13 @@ WORKDIR /app
 
 RUN apk update && apk add --no-cache dumb-init curl ca-certificates
 
+# Копіюємо package.json та bun.lockb
 COPY package.json bun.lockb* ./
 
-# Встановлюємо всі залежності (включно з dev)
+# Встановлюємо всі залежності (dev + prod)
 RUN bun install --frozen-lockfile
 
+# Копіюємо решту проєкту
 COPY . .
 
 # Генеруємо Prisma Client
@@ -19,19 +22,17 @@ RUN bunx prisma generate
 RUN bun run build
 
 # -------------------------
-# Фінальний легкий образ
+# Фінальний легкий образ для production
 FROM oven/bun:1-alpine
 
 WORKDIR /app
 
 RUN apk update && apk add --no-cache dumb-init curl ca-certificates
 
-# Копіюємо зібраний проєкт і production-залежності з builder-а
-COPY --from=builder /app .
+# Копіюємо зібраний проєкт разом із node_modules з builder stage
+COPY --from=builder /app . 
 
-# Встановлюємо лише production-залежності (для мінімального розміру)
-RUN bun install --frozen-lockfile --production
+# Тепер додаткового bun install не потрібно, всі production-залежності вже встановлені
 
 ENTRYPOINT ["dumb-init", "--"]
-
 CMD ["bun", "run", "start"]
