@@ -40,6 +40,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 node_modules/
-bun.lockb
+#.bun.lockb        <-- тепер коментуємо, щоб Bun lockfile був у репозиторії
 .bun/
 *.log
