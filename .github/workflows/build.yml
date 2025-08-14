@@ -1,4 +1,4 @@
-name: Build and Test
+name: Build and Update Bun Lockfile
 
 on:
   push:
@@ -33,18 +33,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bun-
 
-      # 4️⃣ Встановлення залежностей
-      # Якщо lockfile неактуальний, оновлюємо його
+      # 4️⃣ Спроба встановити залежності з frozen lockfile
       - name: Install dependencies
+        id: bun_install
         run: |
           if ! bun install --frozen-lockfile; then
             echo "Lockfile outdated, updating..."
             bun install
             git config --global user.name "github-actions[bot]"
             git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            git checkout -b update-bun-lockfile
             git add bun.lockb
             git commit -m "CI: update bun.lockb"
-            git push origin HEAD:main
+            git push origin update-bun-lockfile
+            echo "PR branch created: update-bun-lockfile"
+            exit 0
           fi
 
       # 5️⃣ Збірка проекту
