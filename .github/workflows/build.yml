@@ -1,4 +1,4 @@
-name: Build and Update Bun Lockfile
+name: Build and Test
 
 on:
   push:
@@ -13,16 +13,16 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Клонування репозиторію
+      # Клонування репозиторію
       - uses: actions/checkout@v3
 
-      # 2️⃣ Встановлення Bun
+      # Встановлення Bun
       - name: Setup Bun
         uses: oven-sh/setup-bun@v1
         with:
           bun-version: latest
 
-      # 3️⃣ Кешування Bun та node_modules
+      # Кешування Bun та node_modules
       - name: Cache Bun dependencies
         uses: actions/cache@v3
         with:
@@ -33,36 +33,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-bun-
 
-      # 4️⃣ Спроба встановити залежності з frozen lockfile
+      # Встановлення залежностей
       - name: Install dependencies
-        id: bun_install
-        run: |
-          if ! bun install --frozen-lockfile; then
-            echo "Lockfile outdated, updating..."
-            bun install
-            git config --global user.name "github-actions[bot]"
-            git config --global user.email "github-actions[bot]@users.noreply.github.com"
-            git checkout -b update-bun-lockfile
-            git add bun.lockb
-            git commit -m "CI: update bun.lockb"
-            git push origin update-bun-lockfile
-            echo "PR branch created: update-bun-lockfile"
-            exit 0
-          fi
+        run: bun install --frozen-lockfile
 
-      # 5️⃣ Збірка проекту
+      # Збірка проекту
       - name: Build project
         run: bun run build
 
-      # 6️⃣ Лінтинг
+      # Лінтинг
       - name: Run lint
         run: bun run lint
 
-      # 7️⃣ Тести
+      # Тести
       - name: Run tests
         run: bun test || echo "Tests not found, skipping..."
 
-      # 8️⃣ Вивід версій для дебагу
+      # Вивід версій для дебагу
       - name: Show versions
         run: |
           bun --version
